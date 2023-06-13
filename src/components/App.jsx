@@ -42,9 +42,9 @@ export const App = () => {
 
         setImages(images => [...images, ...data.hits]);
         setStatus(Status.RESOLVED);
+
       } catch (error) {
         console.log(error);
-
         setError(error.message);
         setStatus(Status.REJECTED);
       }
