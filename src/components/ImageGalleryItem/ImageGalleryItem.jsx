@@ -1,39 +1,34 @@
-import { Component } from 'react';
+import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Modal } from 'components/Modal/Modal';
 import { ImageItem, ImageGalleryItemImage } from './ImageGalleryItem.styled';
 
-export class ImageGalleryItem extends Component {
-  state = {
-    isModalOpen: false,
+export const ImageGalleryItem = ({
+  image: { largeImageURL, webformatURL, tags },
+}) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openModal = () => {
+    setIsModalOpen(true);
   };
 
-  openModal = () => {
-    this.setState({ isModalOpen: true });
-  };
-
-  closeModal = ({ code, target: { nodeName } }) => {
+  const closeModal = ({ code, target: { nodeName } }) => {
     if (code === 'Escape' || nodeName === 'DIV') {
-      this.setState({ isModalOpen: false });
+      setIsModalOpen(false);
     }
   };
 
-  render() {
-    const { isModalOpen } = this.state;
-    const { largeImageURL, webformatURL, tags } = this.props.image;
-
-    return (
-      <ImageItem>
-        <span onClick={this.openModal}>
-          <ImageGalleryItemImage src={`${webformatURL}`} alt={`${tags}`} />
-        </span>
-        {isModalOpen && (
-          <Modal image={largeImageURL} alt={tags} onClose={this.closeModal} />
-        )}
-      </ImageItem>
-    );
-  }
-}
+  return (
+    <ImageItem>
+      <span onClick={openModal}>
+        <ImageGalleryItemImage src={`${webformatURL}`} alt={`${tags}`} />
+      </span>
+      {isModalOpen && (
+        <Modal image={largeImageURL} alt={tags} onClose={closeModal} />
+      )}
+    </ImageItem>
+  );
+};
 
 ImageGalleryItem.propTypes = {
   image: PropTypes.shape({

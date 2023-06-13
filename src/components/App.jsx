@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ColorRing } from 'react-loader-spinner';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.min.css';
@@ -15,56 +15,51 @@ const Status = {
   REJECTED: 'rejected',
 };
 
-export class App extends Component {
-  state = {
-    query: '',
-    images: [],
-    page: 1,
-    status: Status.IDLE,
-    isEmpty: false,
-    error: false,
-    isCollectionEnding: false,
-  };
+export const App = () => {
+  const [query, setQuery] = useState('');
+  const [images, setImages] = useState([]);
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState(Status.IDLE);
+  const [isEmpty, setIsEmpty] = useState(false);
+  const [error, setError] = useState(false);
+  const [isCollectionEnding, setIsCollectionEnding] = useState(false);
 
-  componentDidUpdate(_, { page: prevPage, query: prevQuery }) {
-    const { query, page } = this.state;
+  const memoizedFetchImages = useMemo(() => {
+    return async () => {
+      try {
+        const { data } = await getImages(query, page);
 
-    if (query !== prevQuery || page !== prevPage) {
-      this.setState({ status: Status.PENDING });
-      this.getImages();
-    }
-  }
+        if (data.hits.length === 0) {
+          setIsEmpty(true);
+          setStatus(Status.IDLE);
+          return;
+        }
 
-  getImages = async () => {
-    const { query, page } = this.state;
+        if (Math.ceil(data.totalHits / 12) === page) {
+          setIsCollectionEnding(true);
+          setStatus(Status.RESOLVED);
+        }
 
-    try {
-      const { data } = await getImages(query, page);
+        setImages(images => [...images, ...data.hits]);
+        setStatus(Status.RESOLVED);
+      } catch (error) {
+        console.log(error);
 
-      if (data.hits.length === 0) {
-        this.setState({ isEmpty: true, status: Status.IDLE });
-        return;
+        setError(error.message);
+        setStatus(Status.REJECTED);
       }
+    };
+  }, [page, query]);
 
-      if (Math.ceil(data.totalHits / 12) === page) {
-        this.setState({
-          isCollectionEnding: true,
-          status: Status.RESOLVED,
-          value: '',
-        });
-      }
+  useEffect(() => {
+    if (query !== '') {
+      setStatus(Status.PENDING);
 
-      this.setState(({ images: prevImages }) => ({
-        images: [...prevImages, ...data.hits],
-        status: Status.RESOLVED,
-      }));
-    } catch (error) {
-      console.log(error);
-      this.setState({ error: error.message, status: Status.REJECTED });
+      memoizedFetchImages();
     }
-  };
+  }, [query, memoizedFetchImages]);
 
-  handleSearchSubmit = value => {
+  const handleSearchSubmit = value => {
     if (value === '') {
       toast.info('Search field must be filled!', {
         hideProgressBar: false,
@@ -76,46 +71,41 @@ export class App extends Component {
       });
       return;
     }
-    this.setState({
-      images: [],
-      query: value,
-      isEmpty: false,
-      page: 1,
-      isCollectionEnding: false,
-    });
+
+    setImages([]);
+    setQuery(value);
+    setIsEmpty(false);
+    setPage(1);
+    setIsCollectionEnding(false);
   };
 
-  handleLoadMore = () => {
-    this.setState(({ page: prevPage }) => ({ page: prevPage + 1 }));
+  const handleLoadMore = () => {
+    setPage(page => page + 1);
   };
 
-  render() {
-    const { images, isEmpty, status, error, isCollectionEnding } = this.state;
-
-    return (
-      <Container>
-        <Searchbar onSearchSubmit={this.handleSearchSubmit} />
-        <ToastContainer position="top-right" autoClose={2000} />
-        {isEmpty && <InfoMessages>There are on images... </InfoMessages>}
-        {status === Status.REJECTED && <InfoMessages>{error}</InfoMessages>}
-        {<ImageGallery images={images} />}
-        {status === Status.PENDING && (
-          <Spinner>
-            <ColorRing
-              visible={true}
-              height="80"
-              width="80"
-              ariaLabel="blocks-loading"
-              wrapperStyle={{}}
-              wrapperClass="blocks-wrapper"
-              colors={['#e15b64', '#f47e60', '#f8b26a', '#abbd81', '#849b87']}
-            />
-          </Spinner>
-        )}
-        {status === Status.RESOLVED && !isEmpty && !isCollectionEnding && (
-          <Button onLoadMore={this.handleLoadMore} />
-        )}
-      </Container>
-    );
-  }
-}
+  return (
+    <Container>
+      <Searchbar onSearchSubmit={handleSearchSubmit} />
+      <ToastContainer position="top-right" autoClose={2000} />
+      {isEmpty && <InfoMessages>There are on images... </InfoMessages>}
+      {status === Status.REJECTED && <InfoMessages>{error}</InfoMessages>}
+      {<ImageGallery images={images} />}
+      {status === Status.PENDING && (
+        <Spinner>
+          <ColorRing
+            visible={true}
+            height="80"
+            width="80"
+            ariaLabel="blocks-loading"
+            wrapperStyle={{}}
+            wrapperClass="blocks-wrapper"
+            colors={['#e15b64', '#f47e60', '#f8b26a', '#abbd81', '#849b87']}
+          />
+        </Spinner>
+      )}
+      {status === Status.RESOLVED && !isEmpty && !isCollectionEnding && (
+        <Button onLoadMore={handleLoadMore} />
+      )}
+    </Container>
+  );
+};
